@@ -176,10 +176,10 @@ export const TeamTaskAnalyzer = () => {
             <div className="max-w-4xl mx-auto">
                 <div className="text-center mb-8">
                     <h1 className="text-4xl font-bold text-gray-800 mb-2">
-                        Team Task Evaluation Portal
+                        Mentor Evaluador
                     </h1>
                     <p className="text-gray-600">
-                        Upload your team's task document for comprehensive analysis and feedback
+                       Sube un archivo y obten analisis y feedback
                     </p>
                 </div>
 
