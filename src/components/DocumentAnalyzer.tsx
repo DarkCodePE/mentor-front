@@ -12,7 +12,7 @@ interface AnalysisResult {
     status: string;
     created_at: string;
 }
-const MENTOR_SERVER =  process.env.NEXT_PUBLIC_MENTOR_SERVER
+const MENTOR_SERVER =  process.env.NEXT_PUBLIC_MENTOR_SERVER || 'http://localhost:9004';
 
 export const DocumentAnalyzer = () => {
     const [file, setFile] = useState<File | null>(null);
@@ -62,7 +62,8 @@ export const DocumentAnalyzer = () => {
         formData.append('team_id', 'default-team');
 
         try {
-            const response = await fetch('http://mentor.orlandokuan.org/api/v1/interviews/analyze-document', {
+            const endpoint = '/api/v1/interviews/analyze-document'
+            const response = await fetch(`${MENTOR_SERVER}${endpoint}`, {
                 method: 'POST',
                 body: formData,
             });

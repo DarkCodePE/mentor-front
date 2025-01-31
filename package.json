@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@radix-ui/react-alert-dialog": "^1.1.5",
+    "@radix-ui/react-scroll-area": "^1.2.2",
     "@shadcn/ui": "^0.0.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -18,6 +19,7 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-hot-toast": "^2.5.1",
+    "recharts": "^2.15.1",
     "tailwind-merge": "^3.0.1"
   },
   "devDependencies": {
