@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { FilePlus, FileCheck, Loader2, FileQuestion, Check, AlertTriangle, ChevronRight, BarChart, Award, Book, Flag } from 'lucide-react';
+import { FilePlus, FileCheck, Loader2, FileQuestion, Check, AlertTriangle, ChevronRight, BarChart, Award, Book, Flag, Lightbulb, FlaskConical, HelpCircle, Target, AlertCircle } from 'lucide-react';
 import { Toaster, toast } from 'react-hot-toast';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -108,6 +108,54 @@ const AnalysisReport = ({ result }: { result: AnalysisResult }) => {
                 </div>
             </div>
 
+            {/* Validated Insights */}
+            <div className="bg-white rounded-lg shadow-lg p-6">
+                <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                    <Lightbulb className="w-6 h-6 text-indigo-600" />
+                    Validated Insights
+                </h3>
+                <div className="grid gap-4">
+                    {result.mentor_report.validated_insights.map((item: any, index: number) => (
+                        <div key={index} className="flex items-start gap-3 bg-green-50 p-4 rounded-lg">
+                            <Check className="w-5 h-5 mt-1 text-green-600 flex-shrink-0" />
+                            <p className="text-green-700">{item.insight}</p>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {/* Pending Hypotheses */}
+            <div className="bg-white rounded-lg shadow-lg p-6">
+                <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                    <FlaskConical className="w-6 h-6 text-indigo-600" />
+                    Pending Hypotheses
+                </h3>
+                <div className="grid gap-4">
+                    {result.mentor_report.pending_hypotheses.map((item: any, index: number) => (
+                        <div key={index} className="flex items-start gap-3 bg-amber-50 p-4 rounded-lg">
+                            <HelpCircle className="w-5 h-5 mt-1 text-amber-600 flex-shrink-0" />
+                            <p className="text-amber-700">{item.hypothesis}</p>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {/* Identified Gaps */}
+            <div className="bg-white rounded-lg shadow-lg p-6">
+                <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                    <Target className="w-6 h-6 text-indigo-600" />
+                    Identified Gaps
+                </h3>
+                <div className="grid gap-4">
+                    {result.mentor_report.identified_gaps.map((gap: string, index: number) => (
+                        <div key={index} className="flex items-start gap-3 bg-red-50 p-4 rounded-lg">
+                            <AlertCircle className="w-5 h-5 mt-1 text-red-600 flex-shrink-0" />
+                            <p className="text-red-700">{gap}</p>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
             {/* Action Items */}
             <div className="bg-white rounded-lg shadow-lg p-6">
                 <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
@@ -205,10 +253,10 @@ export default function TeamTaskAnalyzer() {
             <div className="max-w-6xl mx-auto">
                 <div className="text-center mb-8">
                     <h1 className="text-4xl font-bold text-gray-800 mb-2">
-                       Mentor Eval
+                        Mentor Eval
                     </h1>
                     <p className="text-gray-600">
-                        Cargue su documento para obtener un análisis exhaustivo
+                        Cargue su documento para obtener un análisis exhaustivo y comentarios
                     </p>
                 </div>
 
