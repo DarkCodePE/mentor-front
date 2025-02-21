@@ -35,6 +35,7 @@ interface AnalysisResult {
 }
 
 const FILE_SERVER = process.env.NEXT_PUBLIC_MENTOR_SERVER || 'http://localhost:9014';
+const MENTOR_SERVER = process.env.NEXT_PUBLIC_MENTOR_SERVER || 'http://localhost:9004';
 
 function AnalysisReport(props: { result: AnalysisResult }) {
     return null;
@@ -118,7 +119,7 @@ const FolderManager = () => {
             formData.append('file_id', document.file_id);
             formData.append('team_id', 'default-team');
 
-            const response = await fetch(`${FILE_SERVER}/api/v1/interviews/analyze-document`, {
+            const response = await fetch(`${MENTOR_SERVER}/api/v1/interviews/save/analyze-document`, {
                 method: 'POST',
                 body: formData,
             });
