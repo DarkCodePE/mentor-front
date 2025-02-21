@@ -2,12 +2,19 @@
 
 import React, { useState, useEffect } from 'react';
 import { FolderPlus, Upload, File, ChevronRight, ChevronDown, Search } from 'lucide-react';
-import { toast } from 'react-hot-toast';
+import { toast, Toaster } from 'react-hot-toast';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import AnalysisReport from "@/components/AnalysisReport";
+import dynamic from 'next/dynamic';
 
+// Importar AnalysisReport de forma dinámica para evitar problemas de hidratación
+const AnalysisReport = dynamic(() => import('@/components/AnalysisReport'), {
+    loading: () => <div className="animate-pulse bg-gray-100 h-32 rounded-lg"></div>,
+    ssr: false
+});
+
+// Types
 interface FolderData {
     id: number;
     name: string;
@@ -34,11 +41,72 @@ interface AnalysisResult {
     metadata: any;
 }
 
+// Sub-components
+const DocumentCard = ({
+                          doc,
+                          isAnalyzing,
+                          selectedDocument,
+                          analysisResult,
+                          onAnalyze,
+                          onViewAnalysis
+                      }: {
+    doc: DocumentData;
+    isAnalyzing: boolean;
+    selectedDocument: DocumentData | null;
+    analysisResult: AnalysisResult | null;
+    onAnalyze: (doc: DocumentData) => void;
+    onViewAnalysis: () => void;
+}) => (
+    <Card className="p-3 hover:bg-gray-50">
+        <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+                <File className="w-5 h-5 text-gray-400" />
+                <span className="text-gray-600">{doc.name}</span>
+            </div>
+            <div className="flex gap-2">
+                {doc.web_view_link && (
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => window.open(doc.web_view_link, '_blank')}
+                    >
+                        View
+                    </Button>
+                )}
+                <Button
+                    variant="default"
+                    size="sm"
+                    onClick={() => onAnalyze(doc)}
+                    disabled={isAnalyzing && selectedDocument?.id === doc.id}
+                >
+                    {isAnalyzing && selectedDocument?.id === doc.id ? (
+                        <>
+                            <Search className="w-4 h-4 animate-spin mr-2" />
+                            Analyzing...
+                        </>
+                    ) : (
+                        'Analyze'
+                    )}
+                </Button>
+                {analysisResult && selectedDocument?.id === doc.id && (
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={onViewAnalysis}
+                    >
+                        Toggle Analysis
+                    </Button>
+                )}
+            </div>
+        </div>
+    </Card>
+);
+
+// Constants
 const FILE_SERVER = process.env.NEXT_PUBLIC_FILE_SERVER || 'http://localhost:9014';
 const MENTOR_SERVER = process.env.NEXT_PUBLIC_MENTOR_SERVER || 'http://localhost:9004';
 
-
-
+// Main Component
 const FolderManager = () => {
     const [folderStructure, setFolderStructure] = useState<FolderData[]>([]);
     const [expandedFolders, setExpandedFolders] = useState<Set<number>>(new Set());
@@ -46,8 +114,8 @@ const FolderManager = () => {
     const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [newFolderName, setNewFolderName] = useState('');
-    const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
     const [isCreatingFolder, setIsCreatingFolder] = useState(false);
+    const [showAnalysis, setShowAnalysis] = useState(false);
 
     useEffect(() => {
         fetchFolderStructure();
@@ -65,7 +133,8 @@ const FolderManager = () => {
         }
     };
 
-    const toggleFolder = (folderId: number) => {
+    const toggleFolder = (folderId: number, e?: React.MouseEvent) => {
+        e?.stopPropagation();
         setExpandedFolders(prev => {
             const newSet = new Set(prev);
             if (newSet.has(folderId)) {
@@ -87,13 +156,8 @@ const FolderManager = () => {
         try {
             const response = await fetch(`${FILE_SERVER}/drive/folders`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    name: newFolderName,
-                    parent_folder_id: selectedFolderId
-                }),
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: newFolderName }),
             });
 
             if (!response.ok) throw new Error('Failed to create folder');
@@ -103,7 +167,6 @@ const FolderManager = () => {
             toast.success('Folder created successfully');
         } catch (error) {
             toast.error('Error creating folder');
-            console.error('Error:', error);
         } finally {
             setIsCreatingFolder(false);
         }
@@ -112,6 +175,8 @@ const FolderManager = () => {
     const analyzeDocument = async (document: DocumentData) => {
         setIsAnalyzing(true);
         setSelectedDocument(document);
+        setShowAnalysis(true);
+
         try {
             const analysisResponse = await fetch(`${FILE_SERVER}/drive/analyze-document/${document.file_id}`);
 
@@ -164,16 +229,15 @@ const FolderManager = () => {
             fetchFolderStructure();
         } catch (error) {
             toast.error('Error uploading file');
-            console.error('Error:', error);
         }
     };
 
-    const renderFolderStructure = (folders: FolderData[], level = 0) => {
+    const renderFolderStructure = (folders: FolderData[]) => {
         return folders.map(folder => (
             <div key={folder.id} className="ml-4">
                 <div
                     className="flex items-center gap-2 py-2 cursor-pointer hover:bg-gray-50 rounded-lg px-2"
-                    onClick={() => toggleFolder(folder.id)}
+                    onClick={(e) => toggleFolder(folder.id, e)}
                 >
                     {folder.children.length > 0 ? (
                         expandedFolders.has(folder.id) ?
@@ -185,8 +249,8 @@ const FolderManager = () => {
                     <FolderPlus className="w-5 h-5 text-indigo-500" />
                     <span className="text-gray-700 font-medium">{folder.name}</span>
                     <span className="text-gray-400 text-sm ml-2">
-                        ({folder.documents.length} files)
-                    </span>
+            ({folder.documents.length} files)
+          </span>
                     <Button
                         variant="outline"
                         size="sm"
@@ -206,58 +270,22 @@ const FolderManager = () => {
                     <>
                         {folder.documents.map(doc => (
                             <div key={doc.id} className="ml-6 py-2">
-                                <Card className="p-3 hover:bg-gray-50">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                            <File className="w-5 h-5 text-gray-400" />
-                                            <span className="text-gray-600">{doc.name}</span>
-                                        </div>
-                                        <div className="flex gap-2">
-                                            {doc.web_view_link && (
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={() => window.open(doc.web_view_link, '_blank')}
-                                                >
-                                                    View
-                                                </Button>
-                                            )}
-                                            <Button
-                                                variant="default"
-                                                size="sm"
-                                                onClick={() => analyzeDocument(doc)}
-                                                disabled={isAnalyzing && selectedDocument?.id === doc.id}
-                                            >
-                                                {isAnalyzing && selectedDocument?.id === doc.id ? (
-                                                    <>
-                                                        <Search className="w-4 h-4 animate-spin mr-2" />
-                                                        Analyzing...
-                                                    </>
-                                                ) : (
-                                                    'Analyze'
-                                                )}
-                                            </Button>
-                                            {analysisResult && selectedDocument?.id === doc.id && (
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={() => setAnalysisResult(null)}
-                                                >
-                                                    View Analysis
-                                                </Button>
-                                            )}
-                                        </div>
-                                    </div>
-                                </Card>
-
-                                {selectedDocument?.id === doc.id && analysisResult && (
+                                <DocumentCard
+                                    doc={doc}
+                                    isAnalyzing={isAnalyzing}
+                                    selectedDocument={selectedDocument}
+                                    analysisResult={analysisResult}
+                                    onAnalyze={analyzeDocument}
+                                    onViewAnalysis={() => setShowAnalysis(!showAnalysis)}
+                                />
+                                {selectedDocument?.id === doc.id && analysisResult && showAnalysis && (
                                     <div className="mt-4">
                                         <AnalysisReport result={analysisResult} />
                                     </div>
                                 )}
                             </div>
                         ))}
-                        {renderFolderStructure(folder.children, level + 1)}
+                        {renderFolderStructure(folder.children)}
                     </>
                 )}
             </div>
@@ -266,6 +294,7 @@ const FolderManager = () => {
 
     return (
         <div className="space-y-6">
+            <Toaster position="top-right" />
             <Card className="p-6">
                 <div className="flex items-center justify-between mb-6">
                     <h2 className="text-2xl font-bold text-gray-800">Document Repository</h2>
