@@ -50,7 +50,6 @@ export const DocumentAnalyzer = () => {
             toast.error('Please upload a .docx file');
         }
     };
-
     const analyzeDocument = async () => {
         if (!file) return;
 
