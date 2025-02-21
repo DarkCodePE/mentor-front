@@ -35,7 +35,7 @@ interface AnalysisResult {
     metadata: any;
 }
 
-const FILE_SERVER = process.env.NEXT_PUBLIC_MENTOR_SERVER || 'http://localhost:9014';
+const FILE_SERVER = process.env.NEXT_PUBLIC_FILE_SERVER || 'http://localhost:9014';
 const MENTOR_SERVER = process.env.NEXT_PUBLIC_MENTOR_SERVER || 'http://localhost:9004';
 
 
