@@ -28,7 +28,7 @@ interface CriteriaEvaluation {
     questions: EvaluationCriteria;
     final_score: number;
     general_recommendations: string[];
-    suggested_questions: Record<string, string[]>;
+    suggested_questions: Record<string, string>;
 }
 
 interface CriticalEvaluationDetails {
@@ -122,16 +122,10 @@ function AnalysisReport(props: { result: AnalysisResult }) {
                             <AccordionTrigger>Preguntas Sugeridas</AccordionTrigger>
                             <AccordionContent>
                                 <ul className="list-disc ml-4">
-                                    {Object.entries(initialEval.suggested_questions).map(([questionType, questions]) => (
-                                        <div key={questionType} className="mb-2">
-                                            <li className="flex items-center">
-                                                <InfoIcon className="h-4 w-4 text-gray-500 mr-2" />
-                                                <strong>{questionType}:</strong>
-                                            </li>
-                                            <ul className="list-decimal ml-8">
-                                                {questions.map((q, index) => <li key={index}>{q}</li>)}
-                                            </ul>
-                                        </div>
+                                    {Object.entries(initialEval.suggested_questions).map(([questionType, question], index) => (
+                                        <li key={index}>
+                                            <strong>{questionType}:</strong> {question}
+                                        </li>
                                     ))}
                                 </ul>
                             </AccordionContent>
@@ -167,8 +161,36 @@ function AnalysisReport(props: { result: AnalysisResult }) {
                             {mentorReport.mentor_details?.key_findings?.map((item, index) => <li key={index}>{item}</li>)}
                         </ul>
                     </div>
+                    <div>
+                        <p><strong>Discusión de Puntos:</strong></p>
+                        <ul className="list-disc ml-4">
+                            {mentorReport.mentor_details?.discussion_points?.map((item, index) => (
+                                <li key={index}>{item}</li>
+                            ))}
+                        </ul>
+                    </div>
+                    <div>
+                        <p><strong>Preguntas Recomendadas:</strong></p>
+                        <ul className="list-disc ml-4">
+                            {mentorReport.mentor_details?.recommended_questions?.map((item, index) => <li key={index}>{item}</li>)}
+                        </ul>
+                    </div>
+                    <div>
+                        <p><strong>Próximos Pasos:</strong></p>
+                        <ul className="list-disc ml-4">
+                            {mentorReport.mentor_details?.next_steps?.map((item, index) => <li key={index}>{item}</li>)}
+                        </ul>
+                    </div>
+                    <div>
+                        <p><strong>Alertas:</strong></p>
+                        <ul className="list-disc ml-4">
+                            {mentorReport.mentor_details?.alerts?.map((item, index) => <li key={index}>{item}</li>)}
+                        </ul>
+                    </div>
                 </CardContent>
             </Card>
         </div>
     );
 }
+
+export default AnalysisReport;

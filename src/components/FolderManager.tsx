@@ -6,6 +6,7 @@ import { toast } from 'react-hot-toast';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import AnalysisReport from "@/components/AnalysisReport";
 
 
 interface FolderData {
@@ -37,9 +38,7 @@ interface AnalysisResult {
 const FILE_SERVER = process.env.NEXT_PUBLIC_MENTOR_SERVER || 'http://localhost:9014';
 const MENTOR_SERVER = process.env.NEXT_PUBLIC_MENTOR_SERVER || 'http://localhost:9004';
 
-function AnalysisReport(props: { result: AnalysisResult }) {
-    return null;
-}
+
 
 const FolderManager = () => {
     const [folderStructure, setFolderStructure] = useState<FolderData[]>([]);
@@ -115,20 +114,30 @@ const FolderManager = () => {
         setIsAnalyzing(true);
         setSelectedDocument(document);
         try {
-            const formData = new FormData();
-            formData.append('file_id', document.file_id);
-            formData.append('team_id', 'default-team');
+            const analysisResponse = await fetch(`${FILE_SERVER}/drive/analyze-document/${document.file_id}`);
 
-            const response = await fetch(`${MENTOR_SERVER}/api/v1/interviews/save/analyze-document`, {
-                method: 'POST',
-                body: formData,
-            });
+            if (analysisResponse.ok) {
+                const data = await analysisResponse.json();
+                setAnalysisResult(data);
+                toast.success('Analysis loaded successfully');
+            } else if (analysisResponse.status === 404) {
+                const formData = new FormData();
+                formData.append('file_id', document.file_id);
+                formData.append('team_id', 'default-team');
 
-            if (!response.ok) throw new Error('Analysis failed');
+                const response = await fetch(`${MENTOR_SERVER}/api/v1/interviews/save/analyze-document`, {
+                    method: 'POST',
+                    body: formData,
+                });
 
-            const data = await response.json();
-            setAnalysisResult(data);
-            toast.success('Analysis completed successfully');
+                if (!response.ok) throw new Error('Analysis failed');
+
+                const data = await response.json();
+                setAnalysisResult(data);
+                toast.success('Analysis completed successfully');
+            } else {
+                throw new Error('Failed to check existing analysis');
+            }
         } catch (err) {
             toast.error(err instanceof Error ? err.message : 'An error occurred');
             setAnalysisResult(null);
@@ -177,8 +186,8 @@ const FolderManager = () => {
                     <FolderPlus className="w-5 h-5 text-indigo-500" />
                     <span className="text-gray-700 font-medium">{folder.name}</span>
                     <span className="text-gray-400 text-sm ml-2">
-            ({folder.documents.length} files)
-          </span>
+                        ({folder.documents.length} files)
+                    </span>
                     <Button
                         variant="outline"
                         size="sm"
@@ -229,9 +238,19 @@ const FolderManager = () => {
                                                     'Analyze'
                                                 )}
                                             </Button>
+                                            {analysisResult && selectedDocument?.id === doc.id && (
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => setAnalysisResult(null)}
+                                                >
+                                                    View Analysis
+                                                </Button>
+                                            )}
                                         </div>
                                     </div>
                                 </Card>
+
                                 {selectedDocument?.id === doc.id && analysisResult && (
                                     <div className="mt-4">
                                         <AnalysisReport result={analysisResult} />
