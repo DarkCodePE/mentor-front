@@ -11,8 +11,8 @@ export default function Home() {
             <div className="max-w-7xl mx-auto">
                 <Tabs defaultValue="repository" className="space-y-6">
                     <TabsList className="grid w-full grid-cols-2 mb-8">
-                        <TabsTrigger value="repository">Document Repository</TabsTrigger>
-                        <TabsTrigger value="external">Analyze External Document</TabsTrigger>
+                        <TabsTrigger value="repository">Avance de equipos</TabsTrigger>
+                        <TabsTrigger value="external">Sesiones</TabsTrigger>
                     </TabsList>
 
                     <TabsContent value="repository" className="space-y-6">
