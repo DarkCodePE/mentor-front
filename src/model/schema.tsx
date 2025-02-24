@@ -1,19 +1,21 @@
 // Loading states interface
-interface LoadingStates {
+export interface LoadingStates {
     [key: string]: boolean;
 }
-
+export type FolderType = 'project' | 'avances' | 'sesiones' | 'equipo' | 'tema';
 // Types
-interface FolderData {
+export interface FolderData {
     id: number;
     name: string;
+    folder_type: FolderType;
     google_drive_folder_id: string;
     parent_id: number | null;
+    team_id: string;
     children: FolderData[];
     documents: DocumentData[];
 }
 
-interface DocumentData {
+export interface DocumentData {
     id: number;
     name: string;
     mime_type: string;
@@ -22,11 +24,17 @@ interface DocumentData {
     processed: boolean;
 }
 
-interface AnalysisResult {
+export interface AnalysisResult {
     team_id: string;
     interview_content: string;
     initial_evaluation: any;
     critical_evaluation: any;
     mentor_report: any;
     metadata: any;
+}
+
+export interface CreateFolderData {
+    name: string;
+    type: FolderType;
+    teamId?: string;
 }

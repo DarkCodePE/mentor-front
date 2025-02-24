@@ -1,7 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { FolderPlus, Upload, File, ChevronRight, ChevronDown, Search, Loader2, RefreshCw } from 'lucide-react';
-import { toast, Toaster } from 'react-hot-toast';
-import { Card } from "@/components/ui/card";
+import React, { useState } from 'react';
+import { toast } from 'react-hot-toast';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -11,33 +9,17 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
 
-// Types for folder hierarchy
-type FolderType = 'project' | 'avances' | 'sesiones' | 'equipo' | 'tema';
+import {ALLOWED_CHILD_TYPES, FOLDER_TYPE_LABELS, FolderType} from "@/lib/constans";
+import {useFolderRulesStore} from "@/store/folderRulesStore";
+import {Loader2} from "lucide-react";
 
-const FOLDER_TYPE_LABELS: Record<FolderType, string> = {
-    project: 'Project',
-    avances: 'Avances',
-    sesiones: 'Sesiones',
-    equipo: 'Equipo',
-    tema: 'Tema'
-};
-
-const ALLOWED_CHILD_TYPES: Record<FolderType | 'root', FolderType[]> = {
-    root: ['project'],
-    project: ['avances', 'sesiones'],
-    avances: ['equipo'],
-    sesiones: ['tema'],
-    equipo: [],
-    tema: []
-};
 
 const FolderCreationForm = ({
-                                onSubmit,
-                                parentType,
-                                isCreating
-                            }: {
+    onSubmit,
+    parentType,
+    isCreating
+}: {
     onSubmit: (name: string, type: FolderType, teamId: string) => void;
     parentType?: FolderType | 'root';
     isCreating: boolean;
@@ -45,34 +27,40 @@ const FolderCreationForm = ({
     const [folderName, setFolderName] = useState('');
     const [folderType, setFolderType] = useState<FolderType | ''>('');
     const [teamId, setTeamId] = useState('');
+    const rules = useFolderRulesStore((state) => state.rules);
+    const currentRules = useFolderRulesStore((state) => state.getCurrentRules());
 
-    const allowedTypes = parentType ? ALLOWED_CHILD_TYPES[parentType] : ALLOWED_CHILD_TYPES.root;
+    const allowedTypes = parentType ? ALLOWED_CHILD_TYPES[parentType] : ALLOWED_CHILD_TYPES['root'];
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!folderName.trim() || !folderType || !teamId.trim()) {
+        if (!folderName.trim() || !folderType) {
             toast.error('Please fill in all required fields');
             return;
         }
-        onSubmit(folderName, folderType, teamId);
+
+        // Solo enviar teamId si es requerido para este nivel
+        const currentRule = rules[folderType];
+        if (currentRule.requiresTeamId && !teamId.trim()) {
+            toast.error('Team ID is required for this folder type');
+            return;
+        }
+
+        onSubmit(folderName, folderType, currentRule.requiresTeamId ? teamId : '');
         setFolderName('');
         setFolderType('');
+        setTeamId('');
     };
 
     return (
         <form onSubmit={handleSubmit} className="flex gap-4">
-            <Input
-                placeholder="Team ID"
-                value={teamId}
-                onChange={(e) => setTeamId(e.target.value)}
-                className="w-32"
-            />
             <Input
                 placeholder="Folder name"
                 value={folderName}
                 onChange={(e) => setFolderName(e.target.value)}
                 className="w-64"
             />
+
             <Select
                 value={folderType}
                 onValueChange={(value: FolderType) => setFolderType(value)}
@@ -81,13 +69,23 @@ const FolderCreationForm = ({
                     <SelectValue placeholder="Select folder type" />
                 </SelectTrigger>
                 <SelectContent>
-                    {allowedTypes.map((type) => (
+                    {currentRules.allowedTypes.map((type) => (
                         <SelectItem key={type} value={type}>
-                            {FOLDER_TYPE_LABELS[type]}
+                            {FOLDER_TYPE_LABELS[type as FolderType]}
                         </SelectItem>
                     ))}
                 </SelectContent>
             </Select>
+
+            {rules[folderType as FolderType]?.requiresTeamId && (
+                <Input
+                    placeholder="Team ID"
+                    value={teamId}
+                    onChange={(e) => setTeamId(e.target.value)}
+                    className="w-32"
+                />
+            )}
+
             <Button type="submit" disabled={isCreating}>
                 {isCreating ? (
                     <>
@@ -101,4 +99,5 @@ const FolderCreationForm = ({
         </form>
     );
 };
+
 export { FolderCreationForm };

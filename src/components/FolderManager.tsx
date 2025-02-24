@@ -12,6 +12,10 @@ import {Badge} from "@/components/ui/badge";
 import DocumentCard from "@/components/file/DocumentCard";
 import LoadingAnalysis from "@/components/share/LoadingAnalysis";
 import {FolderHeader} from "@/components/folder/FolderHeader";
+import {FolderCreationForm} from "@/components/form/FolderCreationForm";
+import {useFolderRulesStore} from "@/store/folderRulesStore";
+import {ALLOWED_CHILD_TYPES, FOLDER_HIERARCHY, FolderType} from "@/lib/constans";
+import {AnalysisResult, CreateFolderData, DocumentData, FolderData, LoadingStates} from "@/model/schema";
 
 // Importar AnalysisReport de forma dinámica para evitar problemas de hidratación
 const AnalysisReport = dynamic(() => import('@/components/AnalysisReport'), {
@@ -32,7 +36,7 @@ const FolderManager = () => {
     const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [newFolderName, setNewFolderName] = useState('');
-    const [isCreatingFolder, setIsCreatingFolder] = useState(false);
+
     const [isSyncingDrive, setIsSyncingDrive] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [loadingStates, setLoadingStates] = useState<LoadingStates>({});
@@ -40,6 +44,10 @@ const FolderManager = () => {
     const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(false);
     // En FolderManager, añadimos estado para el ID de la carpeta que se está sincronizando
     const [syncingFolderId, setSyncingFolderId] = useState<string | null>(null);
+    const setCurrentLevel = useFolderRulesStore((state) => state.setCurrentLevel);
+    // Estados para creación de carpetas raíz
+    const [newRootFolderName, setNewRootFolderName] = useState('');
+    const [isCreatingFolder, setIsCreatingFolder] = useState(false);
 
     useEffect(() => {
         fetchFolderStructure();
@@ -51,10 +59,37 @@ const FolderManager = () => {
             const response = await fetch(`${FILE_SERVER}/drive/root_structure`);
             if (!response.ok) throw new Error('Failed to fetch folder structure');
             const data = await response.json();
-            setFolderStructure(data);
+
+            // Add folder_type recursively to the structure
+            const addFolderTypes = (folders: FolderData[], parentType: FolderType | 'root' = 'root'): FolderData[] => {
+                return folders.map(folder => {
+                    // Determine the folder type based on parent type and position
+                    let folderType: FolderType;
+                    if (parentType === 'root') {
+                        folderType = 'project';
+                    } else if (parentType === 'project') {
+                        folderType = folder.name.toLowerCase().includes('avance') ? 'avances' : 'sesiones';
+                    } else if (parentType === 'avances') {
+                        folderType = 'equipo';
+                    } else if (parentType === 'sesiones') {
+                        folderType = 'tema';
+                    } else {
+                        folderType = folder.folder_type || 'project';
+                    }
+
+                    return {
+                        ...folder,
+                        folder_type: folderType,
+                        children: folder.children ? addFolderTypes(folder.children, folderType) : []
+                    };
+                });
+            };
+
+            const processedData = addFolderTypes(data);
+            setFolderStructure(processedData);
         } catch (error) {
-            toast.error('Error fetching folder structure');
-            console.error('Error:', error);
+            console.error('Error fetching folder structure:', error);
+            toast.error('Failed to fetch folder structure');
         } finally {
             setIsLoading(false);
         }
@@ -67,6 +102,65 @@ const FolderManager = () => {
             setAnalysisResult(null);
         }
     }, [selectedDocument]);
+
+    useEffect(() => {
+        // Establecer el nivel inicial
+        setCurrentLevel('root');
+        fetchFolderStructure();
+    }, []);
+
+    const handleCreateRootFolder = async () => {
+        if (!newRootFolderName.trim()) {
+            toast.error('Please enter a folder name');
+            return;
+        }
+
+        setIsCreatingFolder(true);
+        try {
+            const response = await fetch(`${FILE_SERVER}/drive/folders`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: newRootFolderName,
+                    folder_type: 'project'
+                }),
+            });
+
+            if (!response.ok) throw new Error('Failed to create folder');
+
+            await fetchFolderStructure();
+            setNewRootFolderName('');
+            toast.success('Project folder created successfully');
+        } catch (error) {
+            toast.error('Error creating folder');
+        } finally {
+            setIsCreatingFolder(false);
+        }
+    };
+
+    const handleCreateSubfolder = async (parentId: number, folderData: { name: string, type: FolderType, teamId?: string }) => {
+        try {
+            const response = await fetch(`${FILE_SERVER}/drive/folders`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: folderData.name,
+                    folder_type: folderData.type,
+                    parent_folder_id: parentId,
+                    team_id: folderData.teamId
+                }),
+            });
+
+            if (!response.ok) throw new Error('Failed to create subfolder');
+
+            await fetchFolderStructure();
+            toast.success('Subfolder created successfully');
+        } catch (error) {
+            toast.error('Error creating subfolder');
+            console.error('Error:', error);
+        }
+    };
+
 
     // Función para sincronizar una carpeta específica
     const syncFolder = async (folderId: string) => {
@@ -149,7 +243,10 @@ const FolderManager = () => {
             const response = await fetch(`${FILE_SERVER}/drive/folders`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: newFolderName }),
+                body: JSON.stringify({
+                    name: newFolderName,
+
+                }),
             });
 
             if (!response.ok) throw new Error('Failed to create folder');
@@ -251,52 +348,93 @@ const FolderManager = () => {
         }
     };
 
+    const handleCreateFolder = async (name: string, type: FolderType, teamId: string) => {
+        if (!name.trim()) {
+            toast.error('Please enter a folder name');
+            return;
+        }
+
+        setIsCreatingFolder(true);
+        try {
+            const response = await fetch(`${FILE_SERVER}/drive/folders`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name,
+                    type,
+                    team_id: teamId,
+                    parent_folder_id: null // o el ID de la carpeta padre si es necesario
+                }),
+            });
+
+            if (!response.ok) throw new Error('Failed to create folder');
+
+            await fetchFolderStructure();
+            toast.success('Folder created successfully');
+        } catch (error) {
+            toast.error('Error creating folder');
+        } finally {
+            setIsCreatingFolder(false);
+        }
+    };
+
     const renderFolderStructure = (folders: FolderData[]) => {
-        return folders.map(folder => (
-            <div key={folder.id} className="ml-4">
-                <FolderHeader
-                    folder={folder}
-                    isExpanded={expandedFolders.has(folder.id)}
-                    onToggle={() => toggleFolder(folder.id)}
-                    onUpload={(e) => handleFileUpload(e, folder.id)}
-                    onSync={() => syncFolder(folder.google_drive_folder_id)}
-                    isSyncing={syncingFolderId === folder.google_drive_folder_id}
-                    loadingStates={loadingStates}
-                />
+        return folders.map(folder => {
+            // Si folder_type es undefined, asumimos que es 'project' para carpetas existentes
+            console.log('Current folder:', folder);
+            const folderType = folder.folder_type || 'project';
+            console.log('Folder type:', folderType);
+            const allowedChildTypes = FOLDER_HIERARCHY[folderType] || [];
+            console.log('Allowed child types:', allowedChildTypes);
 
-                {expandedFolders.has(folder.id) && (
-                    <>
-                        {/* Documentos */}
-                        {folder.documents.map(doc => (
-                            <div key={doc.id} className="ml-6 py-2">
-                                <DocumentCard
-                                    doc={doc}
-                                    isAnalyzing={isAnalyzing}
-                                    selectedDocument={selectedDocument}
-                                    analysisResult={analysisResult}
-                                    onAnalyze={analyzeDocument}
-                                    onViewAnalysis={handleViewAnalysis}
-                                    showAnalysis={selectedDocument?.id === doc.id && showAnalysis}
-                                    isLoadingAnalysis={isLoadingAnalysis}
-                                />
-                                {selectedDocument?.id === doc.id && showAnalysis && (
-                                    <div className="mt-4">
-                                        {isLoadingAnalysis ? (
-                                            <LoadingAnalysis />
-                                        ) : analysisResult ? (
-                                            <AnalysisReport result={analysisResult} />
-                                        ) : null}
-                                    </div>
-                                )}
-                            </div>
-                        ))}
 
-                        {/* Carpetas hijas */}
-                        {folder.children.length > 0 && renderFolderStructure(folder.children)}
-                    </>
-                )}
-            </div>
-        ));
+            console.log('Current folder:', folder);
+            console.log('Folder type:', folderType);
+            console.log('Allowed types:', allowedChildTypes);
+            return (
+                <div key={folder.id} className="ml-4">
+                    <FolderHeader
+                        folder={{...folder, folder_type: folderType}}
+                        isExpanded={expandedFolders.has(folder.id)}
+                        onToggle={() => toggleFolder(folder.id)}
+                        onCreateSubfolder={handleCreateSubfolder}
+                        onSync={() => syncFolder(folder.google_drive_folder_id)}
+                        isSyncing={syncingFolderId === folder.google_drive_folder_id}
+                        loadingStates={loadingStates}
+                        allowedChildTypes={allowedChildTypes}
+                    />
+
+                    {expandedFolders.has(folder.id) && (
+                        <>
+                            {folder.documents.map(doc => (
+                                <div key={doc.id} className="ml-6 py-2">
+                                    <DocumentCard
+                                        doc={doc}
+                                        isAnalyzing={isAnalyzing}
+                                        selectedDocument={selectedDocument}
+                                        analysisResult={analysisResult}
+                                        onAnalyze={analyzeDocument}
+                                        onViewAnalysis={handleViewAnalysis}
+                                        showAnalysis={selectedDocument?.id === doc.id && showAnalysis}
+                                        isLoadingAnalysis={isLoadingAnalysis}
+                                    />
+                                    {selectedDocument?.id === doc.id && showAnalysis && (
+                                        <div className="mt-4">
+                                            {isLoadingAnalysis ? (
+                                                <LoadingAnalysis />
+                                            ) : analysisResult ? (
+                                                <AnalysisReport result={analysisResult} />
+                                            ) : null}
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                            {folder.children.length > 0 && renderFolderStructure(folder.children)}
+                        </>
+                    )}
+                </div>
+            );
+        });
     };
 
     const handleViewAnalysis = async (doc: DocumentData) => {
@@ -340,13 +478,14 @@ const FolderManager = () => {
             </Card>
         );
     }
+
     return (
         <div className="space-y-6">
             <Toaster position="top-right"/>
             <Card className="p-6">
                 <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center gap-4">
-                        <h2 className="text-2xl font-bold text-gray-800">Documentos</h2>
+                        <h2 className="text-2xl font-bold text-gray-800">Document Repository</h2>
                         <Button
                             variant="outline"
                             size="sm"
@@ -360,27 +499,11 @@ const FolderManager = () => {
                             Sync All
                         </Button>
                     </div>
-                    <div className="flex gap-4">
-                        <Input
-                            placeholder="New folder name"
-                            value={newFolderName}
-                            onChange={(e) => setNewFolderName(e.target.value)}
-                            className="w-64"
-                        />
-                        <Button
-                            onClick={createFolder}
-                            disabled={isCreatingFolder || !newFolderName.trim()}
-                        >
-                            {isCreatingFolder ? (
-                                <>
-                                    <Loader2 className="w-4 h-4 animate-spin mr-2"/>
-                                    Creating...
-                                </>
-                            ) : (
-                                'Create Folder'
-                            )}
-                        </Button>
-                    </div>
+                    <FolderCreationForm
+                        onSubmit={handleCreateFolder}
+                        parentType="root"
+                        isCreating={isCreatingFolder}
+                    />
                 </div>
 
                 <div className="bg-gray-50 rounded-lg p-4">

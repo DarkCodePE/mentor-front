@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {FolderPlus, Upload, File, ChevronRight, ChevronDown, Search, Loader2, RefreshCw} from 'lucide-react';
 import {Badge} from "@/components/ui/badge";
+import {AnalysisResult, DocumentData} from "@/model/schema";
 // Sub-components
 interface DocumentCardProps {
     doc: DocumentData;
