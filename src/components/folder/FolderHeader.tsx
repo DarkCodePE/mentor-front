@@ -1,6 +1,6 @@
 // components/folder/FolderHeader.tsx
 import { useState } from 'react';
-import { FolderPlus, ChevronRight, ChevronDown, RefreshCw, Plus } from 'lucide-react';
+import {FolderPlus, ChevronRight, ChevronDown, RefreshCw, Plus, Upload} from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -15,6 +15,7 @@ interface FolderHeaderProps {
     onToggle: () => void;
     onCreateSubfolder: (folderId: number, data: CreateFolderData) => Promise<void>;
     onSync: (folderId: string) => Promise<void>;
+    onUpload: (e: React.ChangeEvent<HTMLInputElement>, folderId: number) => Promise<void>;
     isSyncing: boolean;
     loadingStates: Record<string, boolean>;
     allowedChildTypes: readonly FolderType[];
@@ -26,6 +27,7 @@ export const FolderHeader: React.FC<FolderHeaderProps> = ({
                                                               onToggle,
                                                               onCreateSubfolder,
                                                               onSync,
+                                                              onUpload,
                                                               isSyncing,
                                                               loadingStates,
                                                               allowedChildTypes
@@ -34,6 +36,7 @@ export const FolderHeader: React.FC<FolderHeaderProps> = ({
     console.log('Allowed child types:', allowedChildTypes);
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
+    const isUploading = loadingStates[`upload-${folder.id}`];
 
     const handleCreateSubmit = async (data: CreateFolderData) => {
         setIsCreating(true);
@@ -82,6 +85,25 @@ export const FolderHeader: React.FC<FolderHeaderProps> = ({
                             New Subfolder
                         </Button>
                     )}
+
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            const input = document.createElement('input');
+                            input.type = 'file';
+                            input.onchange = (e) => onUpload(e as any, folder.id);
+                            input.click();
+                        }}
+                        disabled={isUploading}
+                    >
+                        <Upload className={cn(
+                            "w-4 h-4 mr-2",
+                            isUploading && "animate-spin"
+                        )} />
+                        Upload
+                    </Button>
 
                     <Button
                         variant="outline"

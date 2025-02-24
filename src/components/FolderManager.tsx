@@ -399,6 +399,7 @@ const FolderManager = () => {
                         onToggle={() => toggleFolder(folder.id)}
                         onCreateSubfolder={handleCreateSubfolder}
                         onSync={() => syncFolder(folder.google_drive_folder_id)}
+                        onUpload={(e) => handleFileUpload(e, folder.id)}  // Añade esta línea
                         isSyncing={syncingFolderId === folder.google_drive_folder_id}
                         loadingStates={loadingStates}
                         allowedChildTypes={allowedChildTypes}
